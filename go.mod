@@ -1,4 +1,4 @@
-module main
+module github.com/iGiant/torrent_search
 
 go 1.15
 
