@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 )
 
@@ -75,13 +76,45 @@ func parsingSites(sites []string) []string {
 			if err != nil {
 				return
 			}
-			torrent, err := searchTorrentFile(body)
+			torrents, err := searchTorrentFile(body)
 			if err != nil {
 				return
 			}
-			result = append(result, torrent)
+			u, err := url.Parse(addr)
+			if err != nil {
+				return
+			}
+			for _, torrent := range torrents {
+				u.Path = torrent
+				result = addUnique(result, u.String())
+			}
 		}(site)
 	}
 	wg.Wait()
 	return result
+}
+
+func addUnique(slice []string, value string) []string {
+	for _, item := range slice {
+		if strings.EqualFold(item, value) {
+			return slice
+		}
+	}
+	return append(slice, value)
+}
+
+func searchTorrentFile(body []byte) ([]string, error) {
+	reader := bytes.NewReader(body)
+	document, err := goquery.NewDocumentFromReader(reader)
+	if err != nil {
+		return nil, nil
+	}
+	result := make([]string, 0)
+	document.Find("a").Each(func(i int, s *goquery.Selection) {
+		href := s.AttrOr("href", "")
+		if strings.HasSuffix(href, ".torrent") {
+			result = append(result, href)
+		}
+	})
+	return result, nil
 }
